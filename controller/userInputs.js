@@ -1,5 +1,6 @@
 function onKeyDown(e) {
-	BS.vars.user.direction = e.keyCode;
+	if(e.keyCode >= 37 && e.keyCode <= 40)
+		BS.vars.user.direction = e.keyCode;
 }
 
 window.onkeydown = onKeyDown;

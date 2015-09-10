@@ -8,6 +8,10 @@ BS.config = {
 	boardSizeY: 50,
 	boardSize: 100,
 	fps: 30,
+	userSpeed: 3,
+	fireSpeed: 5,
+	fireRespawn: 500,
+	itemRespawn: 1000,
 }
 
 // Declare utils namespace
@@ -77,7 +81,7 @@ BS.utils = {
 			ctx.fillStyle = BS.vars.panels[x][y].color;
 			ctx.fillRect(size * x, size * y, size, size);
 		} catch(e) {
-			console.log("ERROR: " + x + "," + y);
+			
 		}
 	},
 	introAnimationPanel: function() {
@@ -157,12 +161,23 @@ BS.game = {
 				BS.vars.user = new BS.user(x,y);
 				BS.vars.user.start();
 				BS.game.processFires();
+				BS.vars.itemInterval = setInterval(function() {
+					for(i = 0 ; i < BS.vars.items.length ; i++) {
+						BS.vars.panels[BS.vars.items[i].x][BS.vars.items[i].y].color = "#00FFFF";
+						BS.utils.drawPanel(BS.vars.items[i].x,BS.vars.items[i].y);
+					}
+				}, 1 * (1000 / BS.config.fps));
 				BS.vars.fireCreateInterval = setInterval(function() {
 					var newFire = new BS.fire();
-					console.log("new fire at: " + newFire.x + "," + newFire.y + " with direction: " +  + newFire.direction)
 					BS.vars.fires.push(newFire);
 					BS.game.addScore(10);
-				},  200);
+				},  BS.config.fireRespawn);
+				BS.vars.itemCreateInterval = setInterval(function() {
+					if(BS.vars.items.length < 10) {
+						var newItem = new BS.item();
+						BS.vars.items.push(newItem);
+					}
+				},  BS.config.itemRespawn);
 			}
 		}
 		window.requestAnimationFrame(action);
@@ -170,7 +185,7 @@ BS.game = {
 	processFires: function() {
 		BS.vars.fireInterval = setInterval(function() {
 			action();
-		}, 1 * (1000 / BS.config.fps));
+		}, BS.config.fireSpeed * (1000 / BS.config.fps));
 		function action() {
 			for (var i = 0; i < BS.vars.fires.length;) {
 				BS.vars.panels[BS.vars.fires[i].x][BS.vars.fires[i].y].color = "#000";
@@ -199,6 +214,7 @@ BS.game = {
 		clearInterval(BS.vars.user.interval);
 		clearInterval(BS.vars.fireInterval);
 		clearInterval(BS.vars.fireCreateInterval);
+		clearInterval(BS.vars.itemCreateInterval);
 		BS.game.overAction(BS.vars.user.posX,BS.vars.user.posY);
 	},
 	overAction: function(x,y) {
@@ -208,8 +224,8 @@ BS.game = {
 		}
 		window.requestAnimationFrame(updatePanels);
 	},
-	addScore: function(n) {
-		BS.vars.score += n;
+	addScore: function() {
+		BS.vars.score += 10 + BS.user.length;
 		document.getElementById("scorePanel").innerHTML = BS.vars.score;
 	}
 }
@@ -219,6 +235,7 @@ BS.vars = {
 	panels: [],
 	user: undefined,
 	fires: [],
+	items: [],
 	score: 0,
 }
 
@@ -231,15 +248,15 @@ BS.panel = function(x, y, size, color) {
 }
 
 BS.user = function(x,y) {
-	this.direction = 1;
-	this.length = 5;
+	this.direction = 38;
+	this.length = 3;
 	this.posX = x;
 	this.posY = y;
 	this.points = [[x,y]];
 	this.start = function() {
 		BS.vars.user.interval = setInterval(function() {
 			BS.vars.user.action();
-		}, 1 * (1000 / BS.config.fps));
+		}, BS.config.userSpeed * (1000 / BS.config.fps));
 	}
 	this.action = function() {
 		if(this.direction == 37) this.posX = (this.posX - 1 < 0) ? 0 : this.posX - 1; // left
@@ -267,6 +284,18 @@ BS.user = function(x,y) {
 				}
 			}
 		}
+		// Check collision with items
+		for(i = 0 ; i < BS.vars.items.length ;) { // for each fires
+			if(BS.vars.items[i].x == BS.vars.user.posX &&
+				BS.vars.items[i].y == BS.vars.user.posY) {
+				BS.vars.user.length += 1;
+				BS.vars.panels[BS.vars.items[i].x][BS.vars.items[i].y].color = "#000";
+				BS.utils.drawPanel(BS.vars.items[i].x, BS.vars.items[i].y);
+				BS.vars.items.splice(i,1);
+			} else {
+				i++;
+			}
+		}
 
 		BS.vars.panels[this.posX][this.posY].color = "#FFF";
 		BS.utils.drawPanel(this.posX,this.posY);
@@ -291,6 +320,14 @@ BS.fire = function() {
 			this.y = 0;
 		}
 	}
+}
+
+BS.item = function() {
+	// First, decide the direction of fire.
+	this.y = Math.floor(Math.random() * BS.config.boardSizeY);
+	this.x = Math.floor(Math.random() * BS.config.boardSizeX);
+	BS.vars.panels[this.x][this.y].color = "#00FFFF";
+	BS.utils.drawPanel(this.x,this.y);
 }
 
 // Attach Event
